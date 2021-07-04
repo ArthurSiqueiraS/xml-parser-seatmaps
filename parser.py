@@ -108,13 +108,9 @@ class SoapParser(ParserXML):
       flight_departure = flight.get('DepartureDateTime')
       [flight_date, flight_time] = flight_departure.split('T')
 
-      rows = {}
-
       seatmap = self._find(response, 'SeatMapDetails')
       # Iterates over flight cabin rows
-      for row in self._iter('RowInfo', seatmap):
-        row_data = self.__soap_row_info(row)
-        rows[row_data.get('row_id')] = row_data
+      rows = [self.__soap_row_info(row) for row in self._iter('RowInfo', seatmap)]
 
       result[flight_id] = self._format_flight(flight_id, flight_date, flight_time, rows)
 
@@ -221,13 +217,6 @@ class IataParser(ParserXML):
     col = self._find(seat, 'Column').text
     seat_id = row_number + col
 
-    offer_ref = self._find(seat, 'OfferItemRefs')
-    try:
-      price = self.offers[offer_ref.text]
-    except AttributeError:
-      # Offer might not be referenced
-      price = self._format_price(0)
-
     available = False
     seat_type = []
     # Lists referenced seat definitions
@@ -238,6 +227,16 @@ class IataParser(ParserXML):
         available = True
       else:
         seat_type.append(self.seat_definitions.get(key))
+
+    if available:
+      offer_ref = self._find(seat, 'OfferItemRefs')
+      try:
+        price = self.offers[offer_ref.text]
+      except AttributeError:
+        # Offer might not be referenced
+        price = self._format_price(0)
+    else:
+      price = self._format_price(0)
 
     return self._format_seat(seat_id, seat_type, available, price, self._format_price(0))
 
